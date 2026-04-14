@@ -11,7 +11,7 @@
 typedef enum e_etatsBOM {
   S_INIT,       // La partie n'a pas commencé ou est terminée
   S_JEUENCOURS, // Partie en cours
-  S_TRANSFERT   // en cours de transfert
+  S_TRANSFERT  // En cours de transfert (pour les durées de transfert)
 } T_ETATSBOM;
 
 // --- VALEURS FIXÉES SELON LE CAHIER DES CHARGES ---

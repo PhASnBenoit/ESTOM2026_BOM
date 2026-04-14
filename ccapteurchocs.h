@@ -20,6 +20,7 @@ public:
 private:
   volatile int _nbChocs;
   volatile bool _lu;
+  volatile int _setup;
   volatile unsigned long _lastChocTime; // NOUVEAU : Chrono pour l'anti-rebond
 
   static void IRAM_ATTR onGpioChocInterrupt(void *arg);

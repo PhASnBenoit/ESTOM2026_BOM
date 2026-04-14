@@ -3,9 +3,11 @@
 //  PROGRAMME BOM (ESTOM 2026)
 //  V5 - NeoPixel Adafruit & Protocole JSON v1.6
 //  v2.0 Réseau OK, IR ok Choc à tester
-// 
+//  v2.1 Version avec affichage debug 
+//  v2.2 Modif champs JSON et INIT
+//
 ////////////////////////////////
-#define VER "2.0"
+#define VER "2.2"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -16,10 +18,6 @@
 #include "ccapteurchocs.h"
 #include "cdipswitch.h"
 #include "cneopixel.h"
-//#include "cledstrip.h"
-//#include "cliaisonserie.h"
-
-
 
 /////////////////////////////////////////
 // VARIABLES ET INSTANCIATION GLOBALES
@@ -28,7 +26,6 @@ CDipSwitch ds;
 CCapteurChocs cc;
 CNeoPixel afficheur(NUM_LEDS, LED_PIN, DELAYVAL);
 WiFiClient clientTcp;  
-//CLiaisonSerie sir;
 
 // PARAMS WiFi
 //const char *ssid = "STS_C12";
@@ -52,7 +49,7 @@ int g_dep_time=0;
 int g_dep_dureeEntreDeuxBytes=0; 
 int g_deltaT=0;
 
-T_ETATSBOM etatBOM = S_INIT;
+T_ETATSBOM _etatBOM = S_INIT;
 
 ////////////////////////////////////////////////////////////////////////////
 void connectToWiFi() {
@@ -63,7 +60,7 @@ void connectToWiFi() {
   while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
     delay(1000);
     Serial.print(".");
-  } 
+  } // wh
   
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\nConnecté au WiFi");
@@ -71,8 +68,9 @@ void connectToWiFi() {
     Serial.println(WiFi.localIP());
   } else {
     Serial.println("\nÉchec de connexion WiFi. RESTART !");
+    delay(2000);
     ESP.restart();
-  } 
+  } // else 
 } 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -109,8 +107,7 @@ void sendMessageToServer(T_TYPESTRAMESEND typeTrame) {
     break;
     
     case E_DEB_TRANSFERT:  
-      doc["ipPAV"] = String(g_adrIpPav);
-    break;
+      doc["ipPAV"] = String(g_adrIpPav); break;
     
     case E_FIN_TRANSFERT:  
       doc["leds"] = String(afficheur.progression());
@@ -123,14 +120,13 @@ void sendMessageToServer(T_TYPESTRAMESEND typeTrame) {
     break;
     
     case E_CHOC:  
-      doc["nbCollisions"] = String(cc.getNbChocs());
-    break;
-  } 
+      doc["collisions"] = String(cc.getNbChocs()); break;
+  } // sw
   
   serializeJson(doc, clientTcp);
   clientTcp.println(); 
   
-  Serial.print("Infos envoyées : ");
+  Serial.print("Infos envoyées vers le serveur : ");
   serializeJson(doc, Serial); 
   Serial.println();
 } 
@@ -147,6 +143,7 @@ void setup() {
   while (!connectToServer()) {
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("\nÉchec de connexion WiFi. RESTART !");
+      delay(2000);
       ESP.restart();
     } // if Wifi
   } // wh
@@ -164,6 +161,7 @@ void setup() {
 
   sendMessageToServer(E_BONJOUR);
   delay(500);
+  Serial.println("Fin du SETUP");
 } 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -172,7 +170,7 @@ void loop() {
   if (!clientTcp.connected()) {
     Serial.println("\nÉchec de connexion au serveur. RESTART !");
     ESP.restart();
-  } 
+  } // if tcp connected
 
   // ==========================================
   // LECTURE TRAME TCP (SUPERVISION)
@@ -195,44 +193,46 @@ void loop() {
     int ordre = data["ordre"].as<String>().toInt();
     Serial.print("Ordre reçu : "); Serial.println(ordre);
 
+    int etatJeu;
     switch (ordre) {  
       case R_INIT: 
         Serial.println("Trame INIT reçue");
-        etatBOM = (T_ETATSBOM)(data["etat"].as<String>().toInt());
-        if (etatBOM != S_INIT) {
-           cc.setup();
-        } // if etatBOM
-        cc.setNbChocs(data["nbChocs"].as<String>().toInt()); 
+        etatJeu = (data["etat"].as<String>().toInt());
+        _etatBOM = (etatJeu==S_JEUENCOURS?S_JEUENCOURS:S_INIT);
+        if (_etatBOM != S_INIT) {
+           cc.setup(); 
+        } // if _etatBOM
+        cc.setNbChocs(data["collisions"].as<String>().toInt()); 
         afficheur.setProgression(g_dsCouleur, g_luminosite, data["leds"].as<String>().toInt());
-        break;
+      break;
         
       case R_DEBUT: 
         Serial.println("Trame DEBUT PARTIE reçue");
-        etatBOM = S_JEUENCOURS;
+        _etatBOM = S_JEUENCOURS;
         if (data.containsKey("luminosite")) {
           g_luminosite = data["luminosite"].as<String>().toInt();
         } // if lum
         cc.setup();
-        //afficheur.setProgression(g_dsCouleur, g_luminosite, 0); // off est mieux !
         afficheur.off();
         cc.setNbChocs();
-        break;
+      break;
 
       case R_FIN: 
-        Serial.println("Trame FIN reçue");
-        etatBOM = S_INIT;
-        break;
+        Serial.println("Trame FIN PARTIE reçue");
+        _etatBOM = S_INIT;
+        // TODO vérifier que tout est réinitialisé
+      break;
         
       default:
         Serial.println("Ordre inconnu."); 
-        break;
+      break;
     } // sw 
   } 
   
   // ==========================================
   // GESTION DES CHOCS
   // ==========================================
-  if (etatBOM != S_INIT){
+  if (_etatBOM != S_INIT) {
     if (cc.isChocs()) {
       sendMessageToServer(E_CHOC);
     } // if cc
@@ -241,7 +241,7 @@ void loop() {
   // ==========================================
   // RÉCEPTION DU CARACTERE VIA INFRAROUGE (PAV)
   // ==========================================   
-  if (etatBOM != S_INIT) {
+  if (_etatBOM != S_INIT) {
       if (Serial.available()>0) {
         char c = Serial.read();
         Serial.print("Je viens de lire : ");
@@ -250,49 +250,49 @@ void loop() {
         int typ = c&TYPE;
           
         if ( (coul==g_dsCouleur) && (typ==g_type) ) {
-          if (etatBOM == S_JEUENCOURS) {
+          if (_etatBOM == S_TRANSFERT) {
             g_dep_time = millis();
-            etatBOM = S_TRANSFERT;
+            _etatBOM = S_TRANSFERT;   // plus nécessaire
             g_adrIpPav = (c & ADRIP) >> 3;
             sendMessageToServer(E_DEB_TRANSFERT);
             Serial.println("Debut de transfert...");
-          } // etatBOM
+          } // _etatBOM
           g_dep_dureeEntreDeuxBytes = millis();
         } // coul
       } // if available
-  } // etatBOM 
+  } // _etatBOM 
   
   // ==========================================
   // GESTION DU TRANSFERT (5 SECONDES)
   // ==========================================
-  if (etatBOM == S_TRANSFERT) {
+  if (_etatBOM == S_JEUENCOURS) {
     g_deltaT = millis() - g_dep_time;
     
     if (g_deltaT >= g_dureeTransfert) {   
       afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression()+2); // Avance de 2 LEDs par transfert
       sendMessageToServer(E_FIN_TRANSFERT);
+      _etatBOM = S_JEUENCOURS;
       delay(500);  // attendre que le PAV reçoive l'ordre d'arrêter d'émettre
-      etatBOM = S_JEUENCOURS;
     } else { 
       g_deltaT = millis() - g_dep_dureeEntreDeuxBytes;
       if (g_deltaT >= g_dureeEntreDeuxBytes) {  
-        etatBOM = S_JEUENCOURS;
         sendMessageToServer(E_ANNULATION_TRANSFERT);
-        delay(500); 
+        _etatBOM = S_JEUENCOURS;
+        delay(500); // attendre que le PAV reçoive l'ordre d'arrêter d'émettre
       } // if g_deltaT
     } // else
-  } // if etatBOM
+  } // if _etatBOM
 
   // ==========================================
   // AFFICHAGE LED (NeoPixel)
   // ==========================================
-  switch(etatBOM) {
+  switch(_etatBOM) {
     case S_INIT: 
       afficheur.off();
       break;
     case S_JEUENCOURS: 
     case S_TRANSFERT: 
-      afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression()); // pas obligé !
+      afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression()); // TODO pas obligé !
       break;
     default: 
       break;
