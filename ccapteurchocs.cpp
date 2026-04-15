@@ -17,7 +17,6 @@ void CCapteurChocs::setup() {
     _setup = 1;
     // TRES IMPORTANT : On configure la broche ici pour rendre la classe autonome
     pinMode(GPIOCHOC_INT, INPUT_PULLUP);
-
     attachInterruptArg(
       digitalPinToInterrupt(GPIOCHOC_INT),  
       onGpioChocInterrupt,  
@@ -31,14 +30,12 @@ void CCapteurChocs::setup() {
 void IRAM_ATTR CCapteurChocs::onGpioChocInterrupt(void *arg) {
   // On récupère notre objet
   CCapteurChocs* instance = static_cast<CCapteurChocs*>(arg);
-  
   // Sécurité : si l'objet n'existe pas, on quitte
   if (instance == nullptr) return; 
 
   unsigned long currentTime = millis();
-
   // ANTI-REBOND NON BLOQUANT (Exemple : 250 ms)
-  // On ne rentre ici que si 250ms se sont écoulées depuis le dernier channgement d'état
+  // On ne rentre ici que si ANTIREBOND (ms) se sont écoulées depuis le dernier changement d'état
   if (currentTime - instance->_lastChocTime > ANTIREBOND) {  // ms
     int gpio = digitalRead(GPIOCHOC_INT);
     if (gpio == 1) { // doit revenir à l'état haut pour compter un choc

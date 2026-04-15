@@ -7,9 +7,10 @@
 //  v2.2 Modif champs JSON et INIT
 //  v2.3 Amélioration CCapteurChocs (gestion des rebonds)
 //  v2.4 Amélioration durée transfert
+//  v2.5 Intégration classe CBatterie
 //
 ////////////////////////////////
-#define VER "2.4"
+#define VER "2.5"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -20,12 +21,14 @@
 #include "ccapteurchocs.h"
 #include "cdipswitch.h"
 #include "cneopixel.h"
+#include "cbatterie.h"
 
 /////////////////////////////////////////
 // VARIABLES ET INSTANCIATION GLOBALES
 /////////////////////////////////////////
 CDipSwitch ds;   
 CCapteurChocs cc;
+CBatterie batt;  // pas de setup
 CNeoPixel afficheur(NUM_LEDS, LED_PIN, DELAYVAL);
 WiFiClient clientTcp;  
 
@@ -34,15 +37,11 @@ WiFiClient clientTcp;
 //const char *password = "PervasioN";
 const char *ssid = "AP-ESTOM";
 const char *password = "ESTOM2025";
-
 // Adresse IP et port du serveur TCP
 const char *tcpAddress = "192.168.0.10";
 const uint16_t tcpPort = 5005;
 
 // etats et valeurs de l'application
-const int g_dureeTransfert = 5000;  // 5s
-const int g_dureeEntreDeuxBytes = 600; 
-
 int g_dsCouleur=0;  
 int g_type=0;
 int g_adrIpPav;
@@ -50,6 +49,7 @@ int g_luminosite=1;
 int g_dep_time=0;
 int g_dep_dureeEntreDeuxBytes=0; 
 int g_deltaT=0;
+bool g_batterie_faible=false;
 
 T_ETATSBOM _etatBOM = S_INIT;
 
@@ -91,7 +91,7 @@ bool connectToServer() {
 void sendMessageToServer(T_TYPESTRAMESEND typeTrame) {
   if (!clientTcp.connected()) {
     Serial.println("Connexion perdue pour envoi, tentative de reconnexion...");
-    if (!clientTcp.connect(tcpAddress, tcpPort)) {
+    if (!connectToServer()) {
       Serial.println("Échec de reconnexion pour envoi.");
       return;
     } // if connect
@@ -103,7 +103,6 @@ void sendMessageToServer(T_TYPESTRAMESEND typeTrame) {
 
   switch(typeTrame) {
     case E_BONJOUR: 
-//      doc["type"] = (g_type == 1) ? "BUS" : "BOM"; // si on veut distinguer les deux
       doc["type"] = "BOM"; 
       doc["couleur"] = String(g_dsCouleur); 
     break;
@@ -125,7 +124,7 @@ void sendMessageToServer(T_TYPESTRAMESEND typeTrame) {
       doc["collisions"] = String(cc.getNbChocs()); break;
   } // sw
   
-  serializeJson(doc, clientTcp);
+  serializeJson(doc, clientTcp); // envoi TCP vers serveur
   clientTcp.println(); 
   
   Serial.print("Infos envoyées vers le serveur : ");
@@ -154,16 +153,26 @@ void setup() {
   ds.setup();  
   g_dsCouleur = ds.getDsCouleur();
   g_type = ds.getType();
-  
+  Serial.print("Couleur détectée : ");
+  Serial.println(g_dsCouleur);
+  Serial.print("Type détectée : ");
+  Serial.println(g_type);
+
+  // batterie
+  float nivBatt = batt.getValue();
+  g_batterie_faible = (nivBatt<=SEUIL_BATTERIE_FAIBLE?true:false);
+
   // init couleur et bandeau LED (NeoPixel)
+  Serial.print("Luminosité de départ : ");
+  Serial.println(g_luminosite);
   afficheur.begin(); // require to intialize object
-  afficheur.on(g_dsCouleur, g_luminosite);
+  afficheur.on(g_dsCouleur, g_luminosite, g_batterie_faible);
   delay(500);
   afficheur.off();
 
   sendMessageToServer(E_BONJOUR);
-  delay(500);
   Serial.println("Fin du SETUP");
+  delay(500);
 } 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -173,6 +182,10 @@ void loop() {
     Serial.println("\nÉchec de connexion au serveur. RESTART !");
     ESP.restart();
   } // if tcp connected
+
+  // test niveau batterie
+  float nivBatt = batt.getValue();
+  g_batterie_faible = (nivBatt<=SEUIL_BATTERIE_FAIBLE?true:false);
 
   // ==========================================
   // LECTURE TRAME TCP (SUPERVISION)
@@ -205,7 +218,7 @@ void loop() {
            cc.setup(); 
         } // if _etatBOM
         cc.setNbChocs(data["collisions"].as<String>().toInt()); 
-        afficheur.setProgression(g_dsCouleur, g_luminosite, data["leds"].as<String>().toInt());
+        afficheur.setProgression(g_dsCouleur, g_luminosite, data["leds"].as<String>().toInt(), g_batterie_faible);
       break;
         
       case R_DEBUT: 
@@ -253,7 +266,7 @@ void loop() {
         Serial.print("Caractère reçu : ");
         Serial.println(car, HEX);
         // décodage
-        if (car != 0) {
+        if (car != 0) {  // parfois lecture de parasite valeur 0
           coulPAV = (car&COULEUR)>>1;
           typePAV = car&TYPE;
           if ( (coulPAV==g_dsCouleur) && (typePAV==g_type) ) { // Si compatible
@@ -269,21 +282,21 @@ void loop() {
         } // if car
       } // if available
   } // _etatBOM 
-  
+
   // ==========================================
   // GESTION DU TRANSFERT (5 SECONDES)
   // ==========================================
   if (_etatBOM == S_TRANSFERT) {
     g_deltaT = millis() - g_dep_time;
     
-    if (g_deltaT >= g_dureeTransfert) {   
-      afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression()+2); // Avance de 2 LEDs par transfert
+    if (g_deltaT >= DUREE_TRANSFERT) {   
+      afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression()+NBLEDS_PAR_TRANSFERT, g_batterie_faible);
       sendMessageToServer(E_FIN_TRANSFERT);
       _etatBOM = S_JEUENCOURS;
       delay(500);  // attendre que le PAV reçoive l'ordre
     } else { 
       g_deltaT = millis() - g_dep_dureeEntreDeuxBytes;
-      if (g_deltaT >= g_dureeEntreDeuxBytes) {  
+      if (g_deltaT >= DUREE_ENTRE_2BYTES) {  
         sendMessageToServer(E_ANNULATION_TRANSFERT);
         _etatBOM = S_JEUENCOURS;
         delay(500); // attendre que le PAV reçoive l'ordre
@@ -300,7 +313,7 @@ void loop() {
       break;
     case S_JEUENCOURS: 
     case S_TRANSFERT: 
-      afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression()); // TODO pas obligé !
+      afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression(), g_batterie_faible); 
       break;
     default: 
       break;

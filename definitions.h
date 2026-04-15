@@ -7,6 +7,12 @@
 #define COULEUR 0x06  // couleur du PAV
 #define TYPE 0x01     // type d'émetteur IR (PAV ou Arrêt bus)
 #define ADRIP 0xF8    // 5 derniers bits de l'adresse IP du PAV
+//////// A DEFINIR ///////////////
+#define DUREE_TRANSFERT 5000    // ms
+#define DUREE_ENTRE_2BYTES 600  // ms
+#define NBLEDS_PAR_TRANSFERT 2  // nbre de LED à allumer pour chaque transfert
+#define SEUIL_BATTERIE_FAIBLE 2.5   // tension seuil batterie faible
+//////////////////////////////////
 
 typedef enum e_etatsBOM {
   S_INIT,       // La partie n'a pas commencé ou est terminée
