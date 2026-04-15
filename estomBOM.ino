@@ -6,9 +6,10 @@
 //  v2.1 Version avec affichage debug 
 //  v2.2 Modif champs JSON et INIT
 //  v2.3 Amélioration CCapteurChocs (gestion des rebonds)
+//  v2.4 Amélioration durée transfert
 //
 ////////////////////////////////
-#define VER "2.3"
+#define VER "2.4"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -40,7 +41,7 @@ const uint16_t tcpPort = 5005;
 
 // etats et valeurs de l'application
 const int g_dureeTransfert = 5000;  // 5s
-const int g_dureeEntreDeuxBytes = 1000; 
+const int g_dureeEntreDeuxBytes = 600; 
 
 int g_dsCouleur=0;  
 int g_type=0;
@@ -235,6 +236,8 @@ void loop() {
   // ==========================================
   if (_etatBOM != S_INIT) {
     if (cc.isChocs()) {
+      Serial.print("Chocs = ");
+      Serial.println(cc.getNbChocs());
       sendMessageToServer(E_CHOC);
     } // if cc
   } 
@@ -242,44 +245,48 @@ void loop() {
   // ==========================================
   // RÉCEPTION DU CARACTERE VIA INFRAROUGE (PAV)
   // ==========================================   
+  int coulPAV;
+  int typePAV;
   if (_etatBOM != S_INIT) {
-      if (Serial.available()>0) {
-        char c = Serial.read();
-        Serial.print("Je viens de lire : ");
-        Serial.println(c, HEX);
-        int coul = (c&COULEUR)>>1;
-        int typ = c&TYPE;
-          
-        if ( (coul==g_dsCouleur) && (typ==g_type) ) {
-          if (_etatBOM == S_TRANSFERT) {
-            g_dep_time = millis();
-            _etatBOM = S_TRANSFERT;   // plus nécessaire
-            g_adrIpPav = (c & ADRIP) >> 3;
-            sendMessageToServer(E_DEB_TRANSFERT);
-            Serial.println("Debut de transfert...");
-          } // _etatBOM
-          g_dep_dureeEntreDeuxBytes = millis();
-        } // coul
+      if (Serial.available() > 0) {
+        char car = Serial.read();
+        Serial.print("Caractère reçu : ");
+        Serial.println(car, HEX);
+        // décodage
+        if (car != 0) {
+          coulPAV = (car&COULEUR)>>1;
+          typePAV = car&TYPE;
+          if ( (coulPAV==g_dsCouleur) && (typePAV==g_type) ) { // Si compatible
+            if (_etatBOM == S_JEUENCOURS) {
+              g_dep_time = millis();
+              _etatBOM = S_TRANSFERT;   // plus nécessaire
+              g_adrIpPav = (car & ADRIP) >> 3;
+              sendMessageToServer(E_DEB_TRANSFERT);
+              Serial.println("Debut de transfert...");
+            } // _etatBOM
+            g_dep_dureeEntreDeuxBytes = millis();
+          } // coul
+        } // if car
       } // if available
   } // _etatBOM 
   
   // ==========================================
   // GESTION DU TRANSFERT (5 SECONDES)
   // ==========================================
-  if (_etatBOM == S_JEUENCOURS) {
+  if (_etatBOM == S_TRANSFERT) {
     g_deltaT = millis() - g_dep_time;
     
     if (g_deltaT >= g_dureeTransfert) {   
       afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression()+2); // Avance de 2 LEDs par transfert
       sendMessageToServer(E_FIN_TRANSFERT);
       _etatBOM = S_JEUENCOURS;
-      delay(500);  // attendre que le PAV reçoive l'ordre d'arrêter d'émettre
+      delay(500);  // attendre que le PAV reçoive l'ordre
     } else { 
       g_deltaT = millis() - g_dep_dureeEntreDeuxBytes;
       if (g_deltaT >= g_dureeEntreDeuxBytes) {  
         sendMessageToServer(E_ANNULATION_TRANSFERT);
         _etatBOM = S_JEUENCOURS;
-        delay(500); // attendre que le PAV reçoive l'ordre d'arrêter d'émettre
+        delay(500); // attendre que le PAV reçoive l'ordre
       } // if g_deltaT
     } // else
   } // if _etatBOM
