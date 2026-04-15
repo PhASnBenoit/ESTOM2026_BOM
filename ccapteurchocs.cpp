@@ -22,7 +22,7 @@ void CCapteurChocs::setup() {
       digitalPinToInterrupt(GPIOCHOC_INT),  
       onGpioChocInterrupt,  
       this,  // On passe l'objet actuel à l'interruption
-      FALLING  
+      CHANGE     // FALLING  // RISING  
     );
   } // if setup
 } // method
@@ -38,11 +38,13 @@ void IRAM_ATTR CCapteurChocs::onGpioChocInterrupt(void *arg) {
   unsigned long currentTime = millis();
 
   // ANTI-REBOND NON BLOQUANT (Exemple : 250 ms)
-  // On ne rentre ici que si 250ms se sont écoulées depuis le dernier vrai choc
-  // TODO A perfectionner
-  if (currentTime - instance->_lastChocTime > 250) {
-    instance->_nbChocs++;
-    instance->_lu = true; // CORRECTION DE L'ERREUR ICI (ajout de instance->)
+  // On ne rentre ici que si 250ms se sont écoulées depuis le dernier channgement d'état
+  if (currentTime - instance->_lastChocTime > ANTIREBOND) {  // ms
+    int gpio = digitalRead(GPIOCHOC_INT);
+    if (gpio == 1) { // doit revenir à l'état haut pour compter un choc
+      instance->_nbChocs++;
+      instance->_lu = true; // CORRECTION DE L'ERREUR ICI (ajout de instance->)
+    } // if gpio
     // On met à jour le chrono
     instance->_lastChocTime = currentTime;
   } // if 250
@@ -56,9 +58,8 @@ int CCapteurChocs::getNbChocs() {
   return _nbChocs;
 } // method
 
-// FONCTION AMÉLIORÉE
 bool CCapteurChocs::isChocs() {
-  bool etatActuel = _lu;
+  bool etatActuel = _lu;  // _lu à 1 si un ou des nouveaux chocs sont à lire.
   _lu = false; // On baisse le drapeau immédiatement après l'avoir lu
   return etatActuel;
-}
+} // method

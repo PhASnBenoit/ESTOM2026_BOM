@@ -5,9 +5,10 @@
 //  v2.0 Réseau OK, IR ok Choc à tester
 //  v2.1 Version avec affichage debug 
 //  v2.2 Modif champs JSON et INIT
+//  v2.3 Amélioration CCapteurChocs (gestion des rebonds)
 //
 ////////////////////////////////
-#define VER "2.2"
+#define VER "2.3"
 
 #include <Arduino.h>
 #include <WiFi.h>
