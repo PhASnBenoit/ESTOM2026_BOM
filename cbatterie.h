@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // DIP SW
-#define GPIO_ANA A8  // tension batterie
+#define GPIO_ANA 8  // tension batterie
 
 class CBatterie {
 public:

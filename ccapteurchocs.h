@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // GPIO des capteurs de choc
-#define GPIOCHOC_INT 5  // A VERIFIER avec le schéma électronique
+#define GPIOCHOC_INT 6 
 #define ANTIREBOND 250  // ms
 
 class CCapteurChocs {

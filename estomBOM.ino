@@ -8,9 +8,10 @@
 //  v2.3 Amélioration CCapteurChocs (gestion des rebonds)
 //  v2.4 Amélioration durée transfert
 //  v2.5 Intégration classe CBatterie
-//
+//  v2.6 Corrections bug transferts
+//  v2.7 Ajout JSON de debug
 ////////////////////////////////
-#define VER "2.5"
+#define VER "2.7"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -48,8 +49,11 @@ int g_adrIpPav;
 int g_luminosite=1;
 int g_dep_time=0;
 int g_dep_dureeEntreDeuxBytes=0; 
+int g_dep_pausePourReprise=0;
 int g_deltaT=0;
 bool g_batterie_faible=false;
+int g_c=0;
+String g_message="";
 
 T_ETATSBOM _etatBOM = S_INIT;
 
@@ -122,6 +126,9 @@ void sendMessageToServer(T_TYPESTRAMESEND typeTrame) {
     
     case E_CHOC:  
       doc["collisions"] = String(cc.getNbChocs()); break;
+
+    case E_DIVERS: // Pour des messages de debug car pas de voie série sur le BOM
+      doc["texte"] = g_message; break;
   } // sw
   
   serializeJson(doc, clientTcp); // envoi TCP vers serveur
@@ -161,6 +168,7 @@ void setup() {
   // batterie
   float nivBatt = batt.getValue();
   g_batterie_faible = (nivBatt<=SEUIL_BATTERIE_FAIBLE?true:false);
+  Serial.printf("Batterie : %f\n", nivBatt);
 
   // init couleur et bandeau LED (NeoPixel)
   Serial.print("Luminosité de départ : ");
@@ -229,7 +237,7 @@ void loop() {
         } // if lum
         cc.setup();
         afficheur.off();
-        cc.setNbChocs();
+        cc.setNbChocs(); // RAZ du nombre de chocs
       break;
 
       case R_FIN: 
@@ -260,49 +268,64 @@ void loop() {
   // ==========================================   
   int coulPAV;
   int typePAV;
-  if (_etatBOM != S_INIT) {
-      if (Serial.available() > 0) {
-        char car = Serial.read();
-        Serial.print("Caractère reçu : ");
-        Serial.println(car, HEX);
-        // décodage
-        if (car != 0) {  // parfois lecture de parasite valeur 0
-          coulPAV = (car&COULEUR)>>1;
-          typePAV = car&TYPE;
-          if ( (coulPAV==g_dsCouleur) && (typePAV==g_type) ) { // Si compatible
-            if (_etatBOM == S_JEUENCOURS) {
-              g_dep_time = millis();
-              _etatBOM = S_TRANSFERT;   // plus nécessaire
-              g_adrIpPav = (car & ADRIP) >> 3;
-              sendMessageToServer(E_DEB_TRANSFERT);
-              Serial.println("Debut de transfert...");
-            } // _etatBOM
-            g_dep_dureeEntreDeuxBytes = millis();
-          } // coul
-        } // if car
-      } // if available
-  } // _etatBOM 
+  if (Serial.available() > 0) {
+    char car = Serial.read();
+    Serial.print("Caractère reçu : ");
+    Serial.println(car, HEX);
+    if ( (_etatBOM!=S_INIT) && (_etatBOM!=S_FIN_TRANSFERT) ) {
+      // décodage
+      if (car != 0) {  // parfois lecture de parasite valeur 0
+        coulPAV = (car&COULEUR)>>1;
+        typePAV = car&TYPE;
+        if ( (coulPAV==g_dsCouleur) && (typePAV==g_type) ) { // Si compatible
+          if (_etatBOM == S_JEUENCOURS) {
+            g_dep_time = millis();
+            _etatBOM = S_TRANSFERT;
+            g_adrIpPav = (car & ADRIP) >> 3;
+            sendMessageToServer(E_DEB_TRANSFERT);
+            Serial.println("Debut de transfert...");
+          } // _etatBOM
+          g_dep_dureeEntreDeuxBytes = millis();
+        } // coul
+      } // if car
+    } // if  _etatBOM
+  } // if available
 
   // ==========================================
   // GESTION DU TRANSFERT (5 SECONDES)
   // ==========================================
   if (_etatBOM == S_TRANSFERT) {
     g_deltaT = millis() - g_dep_time;
-    
-    if (g_deltaT >= DUREE_TRANSFERT) {   
+    if (g_deltaT > DUREE_TRANSFERT) {   
+      g_message = "\n-------------\nTemps atteint fin transfert\n-----------------\n";
+      sendMessageToServer(E_DIVERS);
+      _etatBOM = S_FIN_TRANSFERT;     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      g_dep_pausePourReprise = millis();
       afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression()+NBLEDS_PAR_TRANSFERT, g_batterie_faible);
       sendMessageToServer(E_FIN_TRANSFERT);
-      _etatBOM = S_JEUENCOURS;
-      delay(500);  // attendre que le PAV reçoive l'ordre
-    } else { 
-      g_deltaT = millis() - g_dep_dureeEntreDeuxBytes;
-      if (g_deltaT >= DUREE_ENTRE_2BYTES) {  
-        sendMessageToServer(E_ANNULATION_TRANSFERT);
-        _etatBOM = S_JEUENCOURS;
-        delay(500); // attendre que le PAV reçoive l'ordre
-      } // if g_deltaT
-    } // else
+    } // if DUREEE_TRANSFERT  
+
+    g_deltaT = millis() - g_dep_dureeEntreDeuxBytes;
+    Serial.printf("Début entre 2 octets : %d\n", g_dep_dureeEntreDeuxBytes);
+    if (g_deltaT > DUREE_ENTRE_2BYTES) {  
+      _etatBOM = S_FIN_TRANSFERT;
+      g_message = "\n-------------\nTemps dépassé entre deux\n-----------------\n";
+      sendMessageToServer(E_DIVERS);
+      Serial.printf("deltaT = %d\n", g_deltaT);
+      g_dep_pausePourReprise = millis();
+      sendMessageToServer(E_ANNULATION_TRANSFERT);
+    } // if DUREE_ENTRE_2BYTES
   } // if _etatBOM
+
+  if (_etatBOM == S_FIN_TRANSFERT) {
+    if ( (millis()-g_dep_pausePourReprise) > 1000) {
+      g_message = "\n-------------\njeuencours\n-----------------\n";
+      sendMessageToServer(E_DIVERS);
+      _etatBOM = S_JEUENCOURS;
+      Serial.println("JEU EN COURS");
+    } // if millis
+  } // if fin_transfert
+
 
   // ==========================================
   // AFFICHAGE LED (NeoPixel)
@@ -312,8 +335,11 @@ void loop() {
       afficheur.off();
       break;
     case S_JEUENCOURS: 
-    case S_TRANSFERT: 
       afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression(), g_batterie_faible); 
+      break;
+    case S_TRANSFERT: 
+      if (g_c==0) g_c=1; else g_c=0;
+      afficheur.clignote(g_dsCouleur, 0, g_c, false);
       break;
     default: 
       break;

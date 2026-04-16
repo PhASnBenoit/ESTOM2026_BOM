@@ -38,21 +38,19 @@ int CNeoPixel::progression() {
 
 void CNeoPixel::setProgression(int coul, int lum, int nb, bool bf) {
   int i;
-  // TODO BATTERIE FAIBLE
+  clear();
   if (nb > _numLeds)
     nb = _numLeds;
-  clear();
   _nbAllumed = nb;
-  for (i = 0; i < nb; i++) {
+  for (i = 0; i < _nbAllumed; i++) {
     _pixels.setPixelColor(i, _pixels.Color((couleurs[coul][0]*lum)%256, (couleurs[coul][1]*lum)%256, (couleurs[coul][2]*lum)%256));
   } // for
-  for (i = nb; i < _numLeds; i++) {
+  for (i = nb; i < _numLeds; i++) {  // si batterie faible LED centrale orange
     if ( (i==_numLeds-1) && bf) // LED du milieu
       _pixels.setPixelColor(i, _pixels.Color(orange[0], orange[1], orange[2]));
     else 
       _pixels.setPixelColor(i, _pixels.Color(0, 0, 0));
   } // for
-
   _pixels.show();
 }
 
