@@ -330,7 +330,7 @@ void loop() {
     Serial.printf("Début entre 2 octets : %d\n", g_dep_dureeEntreDeuxBytes);
     if (g_deltaT > DUREE_ENTRE_2BYTES) {  
       _etatBOM = S_FIN_TRANSFERT;
-      g_message = "\n-------------\nTemps dépassé entre deux\n-----------------\n";
+      g_message = "Temps dépassé entre deux-----------------";
       sendMessageToServer(E_DIVERS);
       Serial.printf("deltaT = %d\n", g_deltaT);
       g_dep_pausePourReprise = millis();
@@ -340,7 +340,7 @@ void loop() {
 
   if (_etatBOM == S_FIN_TRANSFERT) {
     if ( (millis()-g_dep_pausePourReprise) > 1000) {
-      g_message = "\n-------------\njeuencours\n-----------------\n";
+      g_message = "jeuencours\n";
       sendMessageToServer(E_DIVERS);
       _etatBOM = S_JEUENCOURS;
       Serial.println("JEU EN COURS");
@@ -350,6 +350,10 @@ void loop() {
   // ==========================================
   // AFFICHAGE LED (NeoPixel)
   // ==========================================
+//  g_message = "Etat : "+ String(_etatBOM);
+//  sendMessageToServer(E_DIVERS);
+//  afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression(), g_batterie_faible); 
+
   switch(_etatBOM) {
     case S_INIT: 
       afficheur.off();
