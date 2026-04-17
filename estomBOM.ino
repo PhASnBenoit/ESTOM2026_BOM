@@ -1,4 +1,4 @@
-////////////////////////////////
+//////////////////////////////////////////////////////////
 //
 //  PROGRAMME BOM (ESTOM 2026)
 //  V5 - NeoPixel Adafruit & Protocole JSON v1.6
@@ -10,8 +10,10 @@
 //  v2.5 Intégration classe CBatterie
 //  v2.6 Corrections bug transferts
 //  v2.7 Ajout JSON de debug
-////////////////////////////////
-#define VER "2.7"
+//  v2.8 Ajustement de l'affichage LED
+//
+///////////////////////////////////////////////////////////
+#define VER "2.8"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -46,12 +48,12 @@ const uint16_t tcpPort = 5005;
 int g_dsCouleur=0;  
 int g_type=0;
 int g_adrIpPav;
-int g_luminosite=1;
+int g_luminosite=1;  // 1 faible ou 2 moyen ou 3 fort
 int g_dep_time=0;
 int g_dep_dureeEntreDeuxBytes=0; 
 int g_dep_pausePourReprise=0;
 int g_deltaT=0;
-bool g_batterie_faible=false;
+bool g_batterie_faible=true;
 int g_c=0;
 String g_message="";
 
@@ -145,22 +147,11 @@ void setup() {
   Serial.print("estomBOM v");
   Serial.println(VER);
 
-  // connexion WIFI
-  connectToWiFi();
-  // connexion au serveur TCP
-  while (!connectToServer()) {
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("\nÉchec de connexion WiFi. RESTART !");
-      delay(2000);
-      ESP.restart();
-    } // if Wifi
-  } // wh
-
-    // lecture des sw au démarrage seulement
+  // lecture des sw au démarrage seulement
   ds.setup();  
   g_dsCouleur = ds.getDsCouleur();
   g_type = ds.getType();
-  Serial.print("Couleur détectée : ");
+  Serial.print("Valeur de couleur détectée : ");
   Serial.println(g_dsCouleur);
   Serial.print("Type détectée : ");
   Serial.println(g_type);
@@ -170,17 +161,40 @@ void setup() {
   g_batterie_faible = (nivBatt<=SEUIL_BATTERIE_FAIBLE?true:false);
   Serial.printf("Batterie : %f\n", nivBatt);
 
-  // init couleur et bandeau LED (NeoPixel)
+  // init couleur 
   Serial.print("Luminosité de départ : ");
   Serial.println(g_luminosite);
-  afficheur.begin(); // require to intialize object
-  afficheur.on(g_dsCouleur, g_luminosite, g_batterie_faible);
-  delay(500);
+
+  // init et clignotement bandeau LED (NeoPixel)
+  afficheur.begin(); 
   afficheur.off();
+  for(int i=0 ; i<5 ; i++) {
+    afficheur.on(g_dsCouleur, g_luminosite, g_batterie_faible);
+    delay(500);
+    afficheur.off();
+    delay(500);
+  } // for
+  
+  // connexion WIFI
+  connectToWiFi();
+  // connexion au serveur TCP
+  while (!connectToServer()) {
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("\nÉchec de connexion WiFi. RESTART !");
+      delay(2000);
+      ESP.restart();
+    } // if Wifi
+    delay(2000);
+  } // wh
 
   sendMessageToServer(E_BONJOUR);
+
+  for(int i=0 ; i< NUM_LEDS ; i++) {
+    afficheur.setProgression(g_dsCouleur, g_luminosite, i+1, g_batterie_faible);
+    delay(200);
+  } // for
+  afficheur.off(); 
   Serial.println("Fin du SETUP");
-  delay(500);
 } 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -217,16 +231,21 @@ void loop() {
     Serial.print("Ordre reçu : "); Serial.println(ordre);
 
     int etatJeu;
+    int nbColls;
+    int nbLeds;
     switch (ordre) {  
       case R_INIT: 
         Serial.println("Trame INIT reçue");
-        etatJeu = (data["etat"].as<String>().toInt());
+        etatJeu = (data["etatJeu"].as<String>().toInt());
         _etatBOM = (etatJeu==S_JEUENCOURS?S_JEUENCOURS:S_INIT);
         if (_etatBOM != S_INIT) {
            cc.setup(); 
         } // if _etatBOM
-        cc.setNbChocs(data["collisions"].as<String>().toInt()); 
-        afficheur.setProgression(g_dsCouleur, g_luminosite, data["leds"].as<String>().toInt(), g_batterie_faible);
+        nbColls = data["collisions"].as<String>().toInt();
+        nbLeds = data["leds"].as<String>().toInt();
+        Serial.printf("coll=%d, leds=%d\n", nbColls, nbLeds);
+        cc.setNbChocs(nbColls); 
+        afficheur.setProgression(g_dsCouleur, g_luminosite, nbLeds, g_batterie_faible);
       break;
         
       case R_DEBUT: 
@@ -236,14 +255,16 @@ void loop() {
           g_luminosite = data["luminosite"].as<String>().toInt();
         } // if lum
         cc.setup();
-        afficheur.off();
-        cc.setNbChocs(); // RAZ du nombre de chocs
+        //afficheur.off();
+        afficheur.setProgression(g_dsCouleur, g_luminosite, 0, g_batterie_faible);
+        cc.setNbChocs(0); // RAZ du nombre de chocs
       break;
 
       case R_FIN: 
         Serial.println("Trame FIN PARTIE reçue");
         _etatBOM = S_INIT;
-        // TODO vérifier que tout est réinitialisé
+        afficheur.setProgression(g_dsCouleur, g_luminosite, 0, g_batterie_faible);
+        cc.setNbChocs(0); // RAZ du nombre de chocs
       break;
         
       default:
@@ -326,7 +347,6 @@ void loop() {
     } // if millis
   } // if fin_transfert
 
-
   // ==========================================
   // AFFICHAGE LED (NeoPixel)
   // ==========================================
@@ -339,7 +359,7 @@ void loop() {
       break;
     case S_TRANSFERT: 
       if (g_c==0) g_c=1; else g_c=0;
-      afficheur.clignote(g_dsCouleur, 0, g_c, false);
+      afficheur.clignote(g_dsCouleur, g_luminosite, g_c, false);
       break;
     default: 
       break;
