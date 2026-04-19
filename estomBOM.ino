@@ -11,9 +11,10 @@
 //  v2.6 Corrections bug transferts
 //  v2.7 Ajout JSON de debug
 //  v2.8 Ajustement de l'affichage LED
+//  v2.9 Changement password WIFI ESTOM2026
 //
 ///////////////////////////////////////////////////////////
-#define VER "2.8"
+#define VER "2.9"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -36,12 +37,10 @@ CNeoPixel afficheur(NUM_LEDS, LED_PIN, DELAYVAL);
 WiFiClient clientTcp;  
 
 // PARAMS WiFi
-//const char *ssid = "STS_C12";
-//const char *password = "PervasioN";
 const char *ssid = "AP-ESTOM";
-const char *password = "ESTOM2025";
+const char *password = "ESTOM2026";
 // Adresse IP et port du serveur TCP
-const char *tcpAddress = "192.168.0.10";
+const char *tcpAddress = "192.168.0.1";
 const uint16_t tcpPort = 5005;
 
 // etats et valeurs de l'application
