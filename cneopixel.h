@@ -44,7 +44,7 @@ class CNeoPixel {
     void off();
     int progression();
     void setProgression(int coul, int lum, int nb, bool bf);
-    void clignote(uint8_t coul, uint8_t lum, uint8_t c, bool bf);
+    void clignote(uint8_t coul, uint8_t lum, bool bf);
 };
 
 #endif

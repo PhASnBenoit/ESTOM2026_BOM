@@ -12,9 +12,11 @@
 //  v2.7 Ajout JSON de debug
 //  v2.8 Ajustement de l'affichage LED
 //  v2.9 Changement password WIFI ESTOM2026
+//  v3.0 19/04/2026 Corrections bug affichage LED
+//  v3.1 28/04/2026 Correction affichage LED départ
 //
 ///////////////////////////////////////////////////////////
-#define VER "2.9"
+#define VER "3.0"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -44,15 +46,15 @@ const char *tcpAddress = "192.168.0.1";
 const uint16_t tcpPort = 5005;
 
 // etats et valeurs de l'application
-int g_dsCouleur=0;  
-int g_type=0;
-int g_adrIpPav;
+int g_dsCouleur=0;  // valeur des DIP switchs
+int g_type=0;  // type de BOM
+int g_adrIpPav; // dernier octet de l'adresse IP du PAV
 int g_luminosite=1;  // 1 faible ou 2 moyen ou 3 fort
 int g_dep_time=0;
 int g_dep_dureeEntreDeuxBytes=0; 
 int g_dep_pausePourReprise=0;
 int g_deltaT=0;
-bool g_batterie_faible=true;
+bool g_batterie_faible=false;
 int g_c=0;
 String g_message="";
 
@@ -349,20 +351,17 @@ void loop() {
   // ==========================================
   // AFFICHAGE LED (NeoPixel)
   // ==========================================
-//  g_message = "Etat : "+ String(_etatBOM);
-//  sendMessageToServer(E_DIVERS);
-//  afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression(), g_batterie_faible); 
-
-  switch(_etatBOM) {
+  int nbLeds;
+  switch((int)_etatBOM) {
     case S_INIT: 
       afficheur.off();
       break;
-    case S_JEUENCOURS: 
-      afficheur.setProgression(g_dsCouleur, g_luminosite, afficheur.progression(), g_batterie_faible); 
+    case S_JEUENCOURS:
+      nbLeds = afficheur.progression();
+      afficheur.setProgression(g_dsCouleur, g_luminosite, nbLeds, g_batterie_faible); 
       break;
     case S_TRANSFERT: 
-      if (g_c==0) g_c=1; else g_c=0;
-      afficheur.clignote(g_dsCouleur, g_luminosite, g_c, false);
+      afficheur.clignote(g_dsCouleur, g_luminosite, g_batterie_faible);
       break;
     default: 
       break;
