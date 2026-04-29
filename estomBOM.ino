@@ -16,7 +16,7 @@
 //  v3.1 28/04/2026 Correction affichage LED départ
 //
 ///////////////////////////////////////////////////////////
-#define VER "3.0"
+#define VER "3.1"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -110,7 +110,7 @@ void sendMessageToServer(T_TYPESTRAMESEND typeTrame) {
 
   switch(typeTrame) {
     case E_BONJOUR: 
-      doc["type"] = "BOM"; 
+      doc["type"] = (g_type==0?"BOM":"BUS");
       doc["couleur"] = String(g_dsCouleur); 
     break;
     
