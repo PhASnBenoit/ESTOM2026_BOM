@@ -14,9 +14,10 @@
 //  v2.9 Changement password WIFI ESTOM2026
 //  v3.0 19/04/2026 Corrections bug affichage LED
 //  v3.1 28/04/2026 Correction affichage LED départ
+//  v3.2 05/05/2026 Corr bug couleur BOM
 //
 ///////////////////////////////////////////////////////////
-#define VER "3.1"
+#define VER "3.2"
 
 #include <Arduino.h>
 #include <WiFi.h>

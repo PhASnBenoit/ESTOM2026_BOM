@@ -14,8 +14,8 @@ void CDipSwitch::setup() {
 }
 
 int CDipSwitch::getDsCouleur() {
-  int sw = digitalRead(GPIO2);
-  sw |= (digitalRead(GPIO3)<<1);
+  int sw = (digitalRead(GPIO2)<<1);
+  sw |= digitalRead(GPIO3);
   return sw;
 }
 
