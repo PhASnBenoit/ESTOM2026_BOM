@@ -15,9 +15,10 @@
 //  v3.0 19/04/2026 Corrections bug affichage LED
 //  v3.1 28/04/2026 Correction affichage LED départ
 //  v3.2 05/05/2026 Corr bug couleur BOM
+//  v3.3 18/05/2026 Corr couleur orange devient rouge
 //
 ///////////////////////////////////////////////////////////
-#define VER "3.2"
+#define VER "3.3"
 
 #include <Arduino.h>
 #include <WiFi.h>

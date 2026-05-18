@@ -34,7 +34,7 @@ void IRAM_ATTR CCapteurChocs::onGpioChocInterrupt(void *arg) {
   if (instance == nullptr) return; 
 
   unsigned long currentTime = millis();
-  // ANTI-REBOND NON BLOQUANT (Exemple : 250 ms)
+  // ANTI-REBOND NON BLOQUANT
   // On ne rentre ici que si ANTIREBOND (ms) se sont écoulées depuis le dernier changement d'état
   if (currentTime - instance->_lastChocTime > ANTIREBOND) {  // ms
     int gpio = digitalRead(GPIOCHOC_INT);

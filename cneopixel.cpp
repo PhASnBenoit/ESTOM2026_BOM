@@ -25,7 +25,7 @@ void CNeoPixel::clear() {
 // Allumer toutes les LEDs avec une couleur
 void CNeoPixel::setAll(uint8_t r, uint8_t g, uint8_t b, bool bf) {
   if (bf==true) // si batterie faible
-    _pixels.setPixelColor(0, _pixels.Color(orange[0], orange[1], orange[2]));
+    _pixels.setPixelColor(0, _pixels.Color(rouge[0], rouge[1], rouge[2]));
   else 
     _pixels.setPixelColor(0, _pixels.Color(r, g, b));
   for (int i = 1; i < _numLeds; i++) {
@@ -46,7 +46,7 @@ void CNeoPixel::setProgression(int coul, int lum, int nb, bool bf) {
   if (lum > 3) lum = 3;
 
   if (bf==true) // LED du milieu indice 0
-    _pixels.setPixelColor(0, _pixels.Color(orange[0], orange[1], orange[2]));
+    _pixels.setPixelColor(0, _pixels.Color(rouge[0], rouge[1], rouge[2]));
   else 
     _pixels.setPixelColor(0, _pixels.Color((couleurs[coul][0]*lum)%256, (couleurs[coul][1]*lum)%256, (couleurs[coul][2]*lum)%256));
 

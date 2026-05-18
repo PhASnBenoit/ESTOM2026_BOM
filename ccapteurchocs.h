@@ -5,7 +5,7 @@
 
 // GPIO des capteurs de choc
 #define GPIOCHOC_INT 6 
-#define ANTIREBOND 250  // ms
+#define ANTIREBOND 150  // ms
 
 class CCapteurChocs {
 
