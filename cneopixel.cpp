@@ -10,7 +10,8 @@ CNeoPixel::CNeoPixel(int num_leds, int pin, int delay_val)
 }
 
 // Initialisation
-void CNeoPixel::begin() {
+void CNeoPixel::begin(bool type) {
+  _type = type;
   _pixels.begin();
   _pixels.clear();
   _pixels.show();
@@ -40,19 +41,30 @@ int CNeoPixel::progression() {
 
 void CNeoPixel::setProgression(int coul, int lum, int nb, bool bf) {
   int i;
+  int r,v,b;
   if (nb > _numLeds) nb = _numLeds;
   _nbAllumed = nb;
   if (lum < 1) lum = 1;
   if (lum > 3) lum = 3;
 
+  if (_type == 1) {  // BUS
+    r = (couleurs[4][0]*lum)%256;
+    v = (couleurs[4][1]*lum)%256;
+    b = (couleurs[4][2]*lum)%256;
+  } else {   // BOM
+    r = (couleurs[coul][0]*lum)%256;
+    v = (couleurs[coul][1]*lum)%256;
+    b = (couleurs[coul][2]*lum)%256;
+  } // else
+
   if (bf==true) // LED du milieu indice 0
     _pixels.setPixelColor(0, _pixels.Color(rouge[0], rouge[1], rouge[2]));
   else 
-    _pixels.setPixelColor(0, _pixels.Color((couleurs[coul][0]*lum)%256, (couleurs[coul][1]*lum)%256, (couleurs[coul][2]*lum)%256));
+    _pixels.setPixelColor(0, r, v, b);
 
   if (nb > 0) {
     for (i=1 ; i<_nbAllumed+1 ; i++)
-      _pixels.setPixelColor(i, _pixels.Color((couleurs[coul][0]*lum)%256, (couleurs[coul][1]*lum)%256, (couleurs[coul][2]*lum)%256));
+      _pixels.setPixelColor(i, r, v, b);
     for (i = _nbAllumed+1 ; i<_numLeds ; i++) 
       _pixels.setPixelColor(i, _pixels.Color(0, 0, 0));
   } else {
@@ -67,9 +79,22 @@ void CNeoPixel::off() {
 }
 
 void CNeoPixel::on(uint8_t coul, uint8_t lum, bool bf) {
+  int r,v,b;
+
   if (lum > 3) lum = 3;
   if (lum < 1) lum = 1;
-  setAll((couleurs[coul][0]*lum)%256, (couleurs[coul][1]*lum)%256, (couleurs[coul][2]*lum)%256, bf);
+
+  if (_type == 1) {  // BUS
+    r = (couleurs[4][0]*lum)%256;
+    v = (couleurs[4][1]*lum)%256;
+    b = (couleurs[4][2]*lum)%256;
+  } else {   // BOM
+    r = (couleurs[coul][0]*lum)%256;
+    v = (couleurs[coul][1]*lum)%256;
+    b = (couleurs[coul][2]*lum)%256;
+  } // else
+
+  setAll(r, v, b, bf);
 }
 
 void CNeoPixel::clignote(uint8_t coul, uint8_t lum, bool bf) {

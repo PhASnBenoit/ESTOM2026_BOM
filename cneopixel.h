@@ -12,11 +12,12 @@
 // A AJUSTER EN FAISANT DES ESSAIS
 //
 const uint8_t rouge[3] = {10, 0, 0};
-const uint8_t couleurs[4][3] = {
+const uint8_t couleurs[5][3] = {
   {9, 5, 0},   // jaune RAL1018
-  {0, 10, 1},   // vert RAL6032
-  {0, 1, 10},   // Bleu RAL5015
-  {1, 1, 1}   // Gris RAL7011
+  {0, 10, 0},   // vert RAL6032
+  {0, 0, 10},   // Bleu RAL5015
+  {1, 1, 1},   // Gris RAL7011
+  {0, 10, 5}   // cyan (bus)
 };  
 // RGB théoriques
 //    CRGB(255,205,0); // jaune RAL1018
@@ -30,6 +31,7 @@ class CNeoPixel {
     int _numLeds;
     int _delayVal;
     int _nbAllumed;
+    int _type;  // Bus ou BOM
 
     void clear();
     void setAll(uint8_t r, uint8_t g, uint8_t b, bool bf);
@@ -38,7 +40,7 @@ class CNeoPixel {
     // Constructeur
     CNeoPixel(int num_leds, int pin, int delay_val);
 
-    void begin();
+    void begin(bool type);
     void on(uint8_t coul, uint8_t lum, bool bf);
     void off();
     int progression();

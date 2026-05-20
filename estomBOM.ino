@@ -15,7 +15,8 @@
 //  v3.0 19/04/2026 Corrections bug affichage LED
 //  v3.1 28/04/2026 Correction affichage LED départ
 //  v3.2 05/05/2026 Corr bug couleur BOM
-//  v3.3 18/05/2026 Corr couleur orange devient rouge
+//  18/05/2026 v3.3 Corr couleur orange devient rouge
+//  19/05/2026 v3.4 Couleur du bus cyan, ajustement
 //
 ///////////////////////////////////////////////////////////
 #define VER "3.3"
@@ -169,7 +170,7 @@ void setup() {
   Serial.println(g_luminosite);
 
   // init et clignotement bandeau LED (NeoPixel)
-  afficheur.begin(); 
+  afficheur.begin(g_type); 
   afficheur.off();
   for(int i=0 ; i<5 ; i++) {
     afficheur.on(g_dsCouleur, g_luminosite, g_batterie_faible);
