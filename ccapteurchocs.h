@@ -16,10 +16,12 @@ public:
   void setup();
   bool isChocs();
   int getNbChocs();
+  int get_cpt();
   void setNbChocs(int nbChocs=0);
 
 private:
   volatile int _nbChocs;
+  volatile int _cpt;
   volatile bool _lu;
   volatile int _setup;
   volatile unsigned long _lastChocTime; // NOUVEAU : Chrono pour l'anti-rebond

@@ -2,11 +2,16 @@
 
 CCapteurChocs::CCapteurChocs() {
   _setup = 0;
+  _cpt = 0;
 } // method
 
 CCapteurChocs::~CCapteurChocs() {
     _setup = 0;
 } // method
+
+int CCapteurChocs::get_cpt() {
+  return _cpt;
+}
 
 void CCapteurChocs::setup() {
   _nbChocs = 0;
@@ -21,12 +26,29 @@ void CCapteurChocs::setup() {
       digitalPinToInterrupt(GPIOCHOC_INT),  
       onGpioChocInterrupt,  
       this,  // On passe l'objet actuel à l'interruption
-      CHANGE     // FALLING  // RISING  
+      RISING     // FALLING  // RISING  // CHANGE
     );
   } // if setup
 } // method
 
-/* ISR (Interruption) */
+/* ISR (Interruption) 
+void IRAM_ATTR CCapteurChocs::onGpioChocInterrupt(void *arg) {
+  // On récupère notre objet
+  CCapteurChocs* instance = static_cast<CCapteurChocs*>(arg);
+  // Sécurité : si l'objet n'existe pas, on quitte
+  if (instance == nullptr) return; 
+  instance->_cpt++;
+
+    int gpio = digitalRead(GPIOCHOC_INT);
+    if (gpio == 1) { // doit revenir à l'état haut pour compter un choc
+      instance->_nbChocs++;
+      instance->_lu = true; // CORRECTION DE L'ERREUR ICI (ajout de instance->)
+    } // if gpio
+    // On met à jour le chrono
+
+} // method
+*/
+
 void IRAM_ATTR CCapteurChocs::onGpioChocInterrupt(void *arg) {
   // On récupère notre objet
   CCapteurChocs* instance = static_cast<CCapteurChocs*>(arg);
@@ -37,26 +59,28 @@ void IRAM_ATTR CCapteurChocs::onGpioChocInterrupt(void *arg) {
   // ANTI-REBOND NON BLOQUANT
   // On ne rentre ici que si ANTIREBOND (ms) se sont écoulées depuis le dernier changement d'état
   if (currentTime - instance->_lastChocTime > ANTIREBOND) {  // ms
-    int gpio = digitalRead(GPIOCHOC_INT);
-    if (gpio == 1) { // doit revenir à l'état haut pour compter un choc
+    //int gpio = digitalRead(GPIOCHOC_INT);
+    //if (gpio == 1) { // doit revenir à l'état haut pour compter un choc
       instance->_nbChocs++;
       instance->_lu = true; // CORRECTION DE L'ERREUR ICI (ajout de instance->)
-    } // if gpio
+    //} // if gpio
     // On met à jour le chrono
     instance->_lastChocTime = currentTime;
   } // if 250
 } // method
 
+
+
 void CCapteurChocs::setNbChocs(int nbChocs) {
+  _cpt = 0;
   _nbChocs = nbChocs;
 } // method
 
 int CCapteurChocs::getNbChocs() {
+  _lu = false; // On baisse le drapeau immédiatement après l'avoir lu
   return _nbChocs;
 } // method
 
 bool CCapteurChocs::isChocs() {
-  bool etatActuel = _lu;  // _lu à 1 si un ou des nouveaux chocs sont à lire.
-  _lu = false; // On baisse le drapeau immédiatement après l'avoir lu
-  return etatActuel;
+  return _lu;
 } // method

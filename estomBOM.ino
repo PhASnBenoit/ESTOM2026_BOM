@@ -280,6 +280,7 @@ void loop() {
   // ==========================================
   // GESTION DES CHOCS
   // ==========================================
+
   if (_etatBOM != S_INIT) {
     if (cc.isChocs()) {
       Serial.print("Chocs = ");
@@ -354,6 +355,8 @@ void loop() {
   // ==========================================
   // AFFICHAGE LED (NeoPixel)
   // ==========================================
+  //Serial.printf("Nb entree dans routine : %d ET   nb chocs : %d\n", cc.get_cpt(), cc.getNbChocs());
+
   int nbLeds;
   switch((int)_etatBOM) {
     case S_INIT: 
