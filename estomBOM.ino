@@ -17,9 +17,11 @@
 //  v3.2 05/05/2026 Corr bug couleur BOM
 //  18/05/2026 v3.3 Corr couleur orange devient rouge
 //  19/05/2026 v3.4 Couleur du bus cyan, ajustement
+//  03/06/2026 v3.5 Correction chocs (soft+mat)
+//  15/06/2026 v3.6 Correction chocs (soft)
 //
 ///////////////////////////////////////////////////////////
-#define VER "3.3"
+#define VER "3.6"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -262,6 +264,7 @@ void loop() {
         //afficheur.off();
         afficheur.setProgression(g_dsCouleur, g_luminosite, 0, g_batterie_faible);
         cc.setNbChocs(0); // RAZ du nombre de chocs
+        // WARNING PhA : VEILLER A INITIAILISER LA BDD --------------------------------------------------------
       break;
 
       case R_FIN: 
@@ -280,11 +283,11 @@ void loop() {
   // ==========================================
   // GESTION DES CHOCS
   // ==========================================
-
+  int nbChocs; 
   if (_etatBOM != S_INIT) {
     if (cc.isChocs()) {
-      Serial.print("Chocs = ");
-      Serial.println(cc.getNbChocs());
+      nbChocs = cc.getNbChocs();
+      Serial.printf("Chocs = %d\n", nbChocs);
       sendMessageToServer(E_CHOC);
     } // if cc
   } 

@@ -16,7 +16,7 @@ public:
   void setup();
   bool isChocs();
   int getNbChocs();
-  int get_cpt();
+//  int get_cpt();
   void setNbChocs(int nbChocs=0);
 
 private:

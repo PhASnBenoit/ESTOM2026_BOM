@@ -3,15 +3,16 @@
 CCapteurChocs::CCapteurChocs() {
   _setup = 0;
   _cpt = 0;
+  _nbChocs = 0;
 } // method
 
 CCapteurChocs::~CCapteurChocs() {
     _setup = 0;
 } // method
 
-int CCapteurChocs::get_cpt() {
-  return _cpt;
-}
+//int CCapteurChocs::get_cpt() {
+//  return _cpt;
+//}
 
 void CCapteurChocs::setup() {
   _nbChocs = 0;
@@ -28,6 +29,7 @@ void CCapteurChocs::setup() {
       this,  // On passe l'objet actuel à l'interruption
       RISING     // FALLING  // RISING  // CHANGE
     );
+    _cpt = 1;  // setup effectuée pour éliminer l'IT parasite du début
   } // if setup
 } // method
 
@@ -59,17 +61,16 @@ void IRAM_ATTR CCapteurChocs::onGpioChocInterrupt(void *arg) {
   // ANTI-REBOND NON BLOQUANT
   // On ne rentre ici que si ANTIREBOND (ms) se sont écoulées depuis le dernier changement d'état
   if (currentTime - instance->_lastChocTime > ANTIREBOND) {  // ms
-    //int gpio = digitalRead(GPIOCHOC_INT);
-    //if (gpio == 1) { // doit revenir à l'état haut pour compter un choc
+    if (instance->_cpt == 1) { // si le setupt vient d'avoir lieu
+      instance->_cpt = 0;
+    } else {
       instance->_nbChocs++;
       instance->_lu = true; // CORRECTION DE L'ERREUR ICI (ajout de instance->)
-    //} // if gpio
-    // On met à jour le chrono
-    instance->_lastChocTime = currentTime;
-  } // if 250
+      // On met à jour le chrono
+      instance->_lastChocTime = currentTime;
+    }
+  } // if 150
 } // method
-
-
 
 void CCapteurChocs::setNbChocs(int nbChocs) {
   _cpt = 0;
